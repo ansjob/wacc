@@ -1,0 +1,5 @@
+skip;
+if true then
+	skip; skip
+else
+	skip; skip

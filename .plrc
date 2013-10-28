@@ -1,0 +1,15 @@
+:- consult(autotest).
+
+test(Basename) :- abolish('$testbasename'/1),
+assert('$testbasename'(Basename)),
+test_helper(Basename).
+
+test :- '$testbasename'(Basename),
+write('Testing '), write(Basename), nl,
+test_helper(Basename).
+
+test_helper(Basename) :- consult(Basename),
+name(Basename,BasenameString),
+append(BasenameString,".tst",TestfilenameString),
+name(TestfilenameAtom,TestfilenameString),
+'$run_test'(TestfilenameAtom).

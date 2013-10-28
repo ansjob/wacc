@@ -1,0 +1,9 @@
+#This is a comment
+
+#So is this
+
+y := x * x;
+z := y * y;
+while (!(y = z)) do
+	# What is x here? */
+	y := z / x

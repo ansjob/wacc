@@ -1,0 +1,162 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{a4wide}
+\usepackage{numprint}
+\usepackage{verbatim}
+\usepackage{moreverb}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{listings}
+\pagestyle{fancy}
+\bibliographystyle{plain}
+
+\fancyhead[L]{
+	\textbf{ID2213} : Logic Programming : Project report \\
+	Marcus Larsson (\url{marcular@kth.se}) and
+	Andreas Sjöberg (\url{ansjob@kth.se})
+	}
+
+\fancyhead[R]{}
+\newcommand{\tab}{\hspace*{2em}}
+
+\begin{document}
+
+\section{Background}
+
+We both took the course on software semantics last semester at Valhallavägen,
+where the programming language \verb|while| was considered.
+The course book \cite{semantics} used defines a compilation function to an abstract machine language which then can be executed using a runtime model also defined in the book.
+
+\section{Prerequisites}
+
+\subsection{The while language}
+
+The while language is a small imperative toy-language described in \cite{semantics}.
+The core version of the language has the concepts of assignments, conditionals, loops, and a skip.
+As an assignment in the semantics course, we extended this with division and try-catch statements, with the obvious exception being divison by zero.
+
+The language is executed in an Abstract Machine (AM), which is a stack-based machine with associative memory. This machine works on instructions that are not part of the language syntax, so a compilation step is necessary. The instruction set, as well as an abstract description of the compilator is available in \cite{semantics}.
+
+
+\subsection{Symbolic Execution}
+
+As described in \cite{semantics} we can analyze certain aspects of a program using symbolic execution. The configuration graph (all possible configurations/executions) are explored and the least upper bound is computed for the memory at each statement of a program with regards to some domain.
+
+During this project we implemented two domains; the detection of signs domain, and parity domain for detecting odd/even numbers.
+
+\section{Implementation}
+
+The project can be divided into some relatively independent modules, each described in their own subsection below.
+
+\subsection{Lexer}
+The lexer simply converts the plain-text source file into a list of relevant tokens.
+We implemented this using Prolog's built in DCG feature, simply defining the keywords and tokens for the language.
+
+\subsection{Parser}
+The parser converts a list of tokens into an abstract syntax tree (AST), also known as a parse tree.
+This is also implemented using as a DCG, and describes what a legal statement in the language is.
+The language is described on EBNF in \cite{semantics}, and writing the parser was simply a matter of converting this into DCG.
+
+\subsection{Compiler}
+The compiler converts statements into instructions.
+We implemented this as a simple recursive prolog predicate, that takes an AST as input and produces a list of instructions as output.
+The compilation function is defined in \cite{semantics}.
+
+\subsection{Runtime}
+The runtime consists of a single predicate \verb|step/2| that takes an initial configuration and gives the next one.
+This function is also defined in the course book, and implementing it was simply a matter of translation.
+A full program execution consists of repeating the \verb|step| predicate until no code remains to be executed. This is done by the predicate \verb|run_code/3|. After a program has been run, we simply print the memory of the final configuration, which is the output of the program.
+
+\subsection{Analyzer}
+The semantics course had a focus on automatically analyzing programs, specifically using symbolic execution.
+We implemented this by extending the \verb|step| predicate to accept what domain to work in, and made it non-deterministic.
+This means we can collect all next steps using Prolog's \verb|findall| predicate.
+To avoid looping indefinitely, we keep track of the set of visited configurations.
+This is implemented using the ordered set predicates built into SWI-Prolog.
+
+One thing needed to compute the least upper bound of the memory at each statement is the concept of control points.
+We simply assign an integer to each instruction that corresponds to a statement.
+For example the following would be a control point assignment:
+\begin{verbatim}
+1: while (true) do
+2:   if( x <= 5) then
+3:      skip
+     else
+4:      skip
+\end{verbatim}
+
+We created a predicate \verb|add_control_points| that adds control points to an AST.
+Then at the compilation step, we accept such a ''decorated'' AST, and add the control points to the corresponding AM instructions.
+
+\section{Issues resolved}
+
+
+\subsection{Exploring the configuration graph in an elegant manner}
+One of the main things we like about the implementation is the use of Prolog's ability 
+to find several solutions to a predicate in the analysis. 
+For example, in the detection of signs analysis, a positive number subtracted from a positive number could result in any sign of the difference.
+This is simply stated by the following predicate:
+\begin{verbatim}
+sub(sign, pos, pos, X):- member(X, [neg, zero, pos]).
+\end{verbatim}
+
+And then one of the clauses in the \verb|step| predicate is:
+\begin{verbatim}
+step(Domain, config([sub|Code], [A, B|Stack], Store), config(Code, [Diff|Stack], Store)):-
+    sub(Domain, A, B, Diff).
+\end{verbatim}
+
+Note that \verb|step| then has the same number of solutions as the \verb|sub/3| predicate.
+This means that we could implement the regular execution as a special case where each of these operations only had one solution (we call this the \verb|int| domain).
+
+\subsection{Hot-switching domains}
+
+We had issues with compilation warnings when compiling the different domain operations, since they all shared predicate name and arity.
+The solution involved some nice meta-programming using \verb|functor/3| and \verb|arg/3|, that allows us to have different functors for each domain,
+avoiding compilation issues.
+
+For example \verb|sub(sign, X, Y, Z)| will make a call to \verb|sign_sub(X, Y, Z)|.
+This also allows for easy extension with new domains, as a proof of this, we added the parity domain (also known as odd/even) in an afternoon.
+
+\subsection{Fixing ambiguity in the program grammar}
+The grammar presented in the book is ambiguous with regards to being left or right associative.
+For example consider the statement \verb|while true do skip; x := 5|. Is the assignment part of the loop body or not?
+It can be interpreted as
+\begin{verbatim}
+while (true) do
+    skip;
+x:= 5
+\end{verbatim}
+or
+
+\begin{verbatim}
+while (true) do
+    skip;
+    x:= 5
+\end{verbatim}
+
+We simply chose to make the language left-associative, making the first variant the one that is executed.
+This is because we wanted to be consistent with for example C and Java.
+
+\section{Evaluation}
+
+This project has been fun to work on, and we have worked on many aspects of the prolog language.
+We have used meta-programming, DCGs, tree-traversal, signal handling, and output formatting, among other things.
+This means we have gotten to see most of the strengths of prolog, and some of it's weaknesses.
+One thing we have not used as much as we would have liked to is the capability to mix input and output parameters in the same predicate.
+
+\clearpage
+\bibliography{report}
+
+\clearpage
+
+\appendix
+\section{Source Code}
+\lstset{numbers=left, breaklines=true}
+
+\input{sources}
+
+\end{document}

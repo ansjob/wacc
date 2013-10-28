@@ -1,0 +1,35 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{a4wide}
+\usepackage{numprint}
+\usepackage{verbatim}
+\usepackage{moreverb}
+\usepackage{url}
+\usepackage{cite}
+\pagestyle{fancy}
+
+\fancyhead[L]{
+	\textbf{ID2213} : Logic Programming : Proposal for project \\
+	Marcus Larsson (\url{marcular@kth.se}) and
+	Andreas Sjöberg (\url{ansjob@kth.se})
+	}
+
+\fancyhead[R]{}
+\newcommand{\tab}{\hspace*{2em}}
+
+\begin{document}
+
+\section{Background}
+
+We both took the course on software semantics last semester at Valhallavägen,
+where the programming language \verb|while| was considered.
+The course book used defines a compilation function to an abstract machine language which then can be executed using a runtime model also defined in the book.
+What we would like to do as an exercise in Prolog is to build a lexer, parser, compiler, and runtime for \verb|while|.
+We did consider doing some proofs on while-programs, but as that was part of the semantics course, we would like to do something different,
+like implementing a non-trivial lexer/parser in Prolog.
+If time permits, we may extend the runtime to symbolic execution, and do some proofs, but this would be the lowest priority in this project.
+
+\end{document}

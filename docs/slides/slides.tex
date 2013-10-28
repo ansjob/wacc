@@ -1,0 +1,217 @@
+
+\documentclass[]{beamer}
+
+\usepackage{beamerthemesplit} 
+\usepackage[utf8]{inputenc}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{moreverb}
+\usepackage{listings}
+
+\title{WACC - The While Analysis and Compilation Chain}
+\author{Andreas Sjöberg \and Marcus Larsson}
+\institute{KTH}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\section[Outline]{}
+
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+\section{Prerequisites}
+
+\subsection{The while language}
+\begin{frame}[fragile]
+	\frametitle{While - a small programming language}
+	\begin{itemize}
+		\item C-like syntax
+			\begin{itemize} 
+				\item assignments
+				\item conditionals -  \verb|if then else |
+				\item loops - \verb|while do|
+				\item try-catch blocks
+				\item \verb!skip!
+			\end{itemize}
+		\item Only integer variables ($Var \subset \mathbb{Z} $)
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{A (very) small example}
+\begin{boxedverbatim}
+y := x * x
+\end{boxedverbatim}
+\end{frame}
+
+\section{Compiling and running}
+
+\subsection{Lexing}
+\begin{frame}[fragile]
+\frametitle{Lexing}
+\begin{itemize}
+	\item Turn stream of bytes into list of tokens.
+	\item Implemented using DCG.
+	\item Our small example:
+\begin{boxedverbatim}
+?- lex(Tokens, "y := x * x", []).
+Tokens = [var(y), =, var(x), *, var(x)]
+\end{boxedverbatim}
+\end{itemize}
+\end{frame}
+
+\subsection{Parsing}
+\begin{frame}[fragile]
+\frametitle{Parsing}
+\begin{itemize}
+	\item Turn list of tokens into an Abstract Syntax Tree (AST)
+	\item Also done using DCG
+	\item Our small example again
+\begin{boxedverbatim}
+?- lex(Tokens, "y := x * x", []),
+   stmt(AST, Tokens, []).
+Tokens = [var(y), =, var(x), *, var(x)],
+AST = ass(var(y), var(x)*var(x))
+\end{boxedverbatim}
+\end{itemize}
+\end{frame}
+
+\subsection{Compiling}
+
+\begin{frame}[fragile]
+\frametitle{On Abstract Machines}
+\begin{itemize}
+	\item Compile the AST into a list of Abstract Machine (AM) instructions
+	\item More general (and easier) than actual assembly instructions
+	\item Stack-based machine (unlimited)
+	\item Associative memory (unlimited)
+	\item Could with relative ease be converted to actual machine code
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Compiling}
+\begin{itemize}
+	\item Implemented as a binary predicate \verb|compile/2|
+	\item Our example (continued)
+\begin{boxedverbatim}
+?- lex(Tokens, "y := x * x", []), 
+   stmt(AST, Tokens, []), 
+   compile(AST, Code).
+Tokens = [var(y), =, var(x), *, var(x)],
+AST = ass(var(y), var(x)*var(x)),
+Code = [fetch(x), fetch(x), mult, store(y)]
+\end{boxedverbatim}
+\end{itemize}
+\end{frame}
+
+\subsection{Running}
+\begin{frame}[fragile]
+\frametitle{Configurations}
+
+\begin{itemize}
+	\item A configuration is a state of the AM
+	\item $Config = Code \times Stack \times Store$
+	\item Example: $\langle [add, store(x)], [5, 3], []  \rangle$
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Stepwise execution}
+\begin{itemize}
+	\item Execution in the AM is simply a series of configurations
+	\item AM finds the next configuration $C_1$ from a given configuration $C_0$ with the predicate \verb|step/2|
+	\item Written as a set of transition rules
+\begin{boxedverbatim}
+step(
+	  config([add|Code], [A,B|Stack], Store), 
+	  config(Code, [Sum|Stack], Store)
+	):-
+	Sum is A + B.
+\end{boxedverbatim}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+
+\frametitle{Live demo}
+\centering
+Live demonstration
+\end{frame}
+
+\section{Analyzing}
+
+\begin{frame}[fragile]
+\frametitle{Going further}
+\centering
+Okay, that was fun. Let's do something interesting.
+\end{frame}
+
+\subsection{Program Analysis}
+
+\begin{frame}
+\frametitle{Program Analysis}
+\begin{itemize}
+	\item By analyzing the program, what can we say about it?
+	\begin{itemize}
+		\item Termination
+		\item Possible variable assignments
+		\item Exceptions
+		\item Dead code
+	\end{itemize}
+\end{itemize}
+\end{frame}
+
+\subsection{Domains}
+
+\begin{frame}
+\frametitle{Domains}
+\begin{itemize}
+\item We want to explore the configuration graph of a program, but this is typically infinite
+\item Restrict ourselves to some finite domain, e.g.
+	\begin{itemize}
+	\item Sign (negative, zero, positive)
+	\item Parity (odd, even)
+	\end{itemize}
+\item The configuration graph is now finite!
+\end{itemize}
+\end{frame}
+
+\subsection{Symbolic Execution}
+
+\begin{frame}[fragile]
+	\frametitle{Symbolic Execution}
+	\begin{itemize}
+		\item We must traverse the configuration graph
+		\item Idea: use the \verb|step| predicate to expand nodes
+		\item Modify \verb|step| to take the current domain into consideration
+		\item \verb|step| may then have several solutions, explore them all using \verb|findall|
+		\item Keep track of already visited configurations to avoid loops
+		\item The interesting configurations are before and after statements (control points) 
+	\end{itemize}
+\end{frame}
+
+\subsection{Least Upper Bound (lub)}
+\begin{frame}[fragile]
+	\frametitle{Learning from our explorations}
+	\begin{itemize}
+		\item Look at memory at all control points, what can we say about the variables?
+		\item If a control point is reached with \verb|x = neg| and \verb|x = pos|, we can say \verb|x = non_zero|
+		\item Find the most specific, but still safe thing to say (the Least Upper Bound)
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Learning from our explorations}
+	\centering
+	Live demonstration
+\end{frame}
+
+
+\end{document}

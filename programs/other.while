@@ -1,0 +1,6 @@
+x := 7;
+
+while !(x=2) do
+	x := x - 2;
+
+skip

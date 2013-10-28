@@ -1,0 +1,10 @@
+x:= 5;
+try (
+	z := 5 / (x - 5);
+	try
+		skip
+	catch
+		w := 70 / (x+5)
+)
+catch
+	y := 2 + x
