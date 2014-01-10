@@ -25,7 +25,7 @@ Compiling is as simple as issuing the command ```make```.
 Running
 =======
 
-Once the binaries are compiled, running a programs is as easy as doing ``` $ ./while file ``` 
+Once the binaries are compiled, running a program is as easy as doing ``` $ ./while file ``` 
 where file is a path to a file containing a while program.
 For examples of while-programs, see the programs-folder in this repo.
 
